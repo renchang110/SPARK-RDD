@@ -9,7 +9,7 @@ intRDD = sc.parallelize([1,2,3,4,5])
 intRDD.collect()
 ```
 
-3. map 函数 运算     合并   
+3. map 函数 运算     合并    转换算子 transtion
 
 ```python
 # create->list  add   RDD no relation
@@ -311,6 +311,8 @@ a.subtractByKey(b).collect()
 4. 计算RDD中每一个key值的项数 countByKey
 5. collectAsMap  创建key-value的字典  如果出现相同key 系统只会自动匹配其中一个
 6. lookup 通过key查找value值
+7. groupByKey   分组  在聚合
+8. reduceByKey  聚类 在聚合
 
 ```python
 a = sc.parallelize([(1,2),(2,3),(5,4)])
@@ -408,6 +410,7 @@ num = sc.accumulator(0)
 # print(num)
 
 # 利用foreach 传入参数，针对每一项数据执行    任务中无法进行读取value！
+# foreach 没有返回值 （void）map 有返回值 返回一个新的流  action算子 
 intrdd.foreach(lambda x : [total.add(x),num.add(x)])
 # 操作后进行计数
 avg = total.value/num.value
@@ -433,12 +436,17 @@ print(num.value)
 4. 存储等级：1.默认MEMORY_ONLY 内存存储  反串行u化存储在JVM内存中  2. MEMORY_AND_DISK  内存存储不             够，存储到硬盘 3.MEMORY_ONLY_SER  串行化存储  用到是再进行反串行化 cpu资源占用多，节省内存 
 
    4.MEMORY_AND_DISK_SER  与上类似，多余的存储到硬盘  5.DISK_ONLY 存储到硬盘
+   
+5. spark的缓存机制  可以对数据设置缓存进行存储 之后可以直接用存储的数据
 
 ```python
 rdd = sc.parallelize([1,2,3,4,5])
 rdd.collect()
 
 # 进行持久化
+# 1.缓存方式1  底层调用也是MEMORY_ONLY
+rdd.cache() 
+# 2.缓存方式2
 rdd.persist()
 # 查看是否已经缓存
 rdd.is_cached
@@ -453,8 +461,31 @@ rdd.is_cached
 from pyspark import StorageLevel
 rdd = sc.parallelize([1,2,3,4,5])
 rdd.collect
+# 可以通过设置 MEMORY_AND_DISK_1 MEMORY_AND_DISK_2 等设置相同RDD副本
 rdd.persist(StorageLevel.MEMORY_AND_DISK)
 rdd.is_cached
 # 结果：True
+```
+
+## 9.wordcount  test
+
+```python
+# 创建一个测试文档  test.txt 
+'''
+Apple Apple orange
+banana banana Grape
+'''
+# 读取内容
+text = sc.textFile('data/test.txt')
+# 按照空格切
+testrdd = text.flatMap(lambda x : x.split(' '))
+# testrdd.collect()
+# 转化为元组并计数
+testrdd2 = testrdd.map(lambda x : (x,1)).reduceByKey(lambda x,y : x + y)
+# 储存 （存储到hdfs中，linux 本地存储失败）
+# testrdd2.saveAsTextFile('file:data/Output')
+testrdd2.saveAsTextFile('hdfs://master:9000/user/renchang/wordcount/data/Output')
+# testrdd3 = testrdd2.collectAsMap()
+# print(testrdd3)
 ```
 
